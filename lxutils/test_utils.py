@@ -31,3 +31,14 @@ def test_bitrix_short_lists(get_bitrix):
     b = get_bitrix
     assert len(b.get_list('crm.dealcategory.stage.list')) <= 50
     assert len(b.get_list('user.get')) <= 50
+
+def test_bitrix_post(get_bitrix):
+    b = get_bitrix
+    r = b.post_list('crm.contact.add', [{'fields': {
+        'NAME': 'Алексей',
+        'LAST_NAME': 'Лещенко',
+        "PHONE": [{"VALUE": "+79852227949", "VALUE_TYPE": "WORK"}] 	
+    }}])
+    assert r != None
+    r2 = b.post_list('crm.contact.delete', [{'ID': r[0]['result']}])
+    assert r2 != None

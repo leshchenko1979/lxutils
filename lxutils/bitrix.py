@@ -8,7 +8,7 @@ from tqdm import tqdm
 
 class SemaphoreWrapper():
 
-    def __init__(self, custom_pool_size=100):
+    def __init__(self, custom_pool_size):
         self._stopped_time = None
         self._stopped_value = None
         self._REQUESTS_PER_SECOND = 2
@@ -18,7 +18,7 @@ class SemaphoreWrapper():
     async def __aenter__(self):
         self._sem = asyncio.BoundedSemaphore(self._pool_size)
         if self._stopped_time:
-            self._value = min(self._sem._bound_value, self._stopped_value + 
+            self._sem._value = min(self._sem._bound_value, self._stopped_value + 
                 int((time.monotonic() - self._stopped_time) * self._REQUESTS_PER_SECOND))
             self._stopped_time = None
             self._stopped_value = None
@@ -33,16 +33,16 @@ class SemaphoreWrapper():
 
     async def _release_sem(self):
         while True:
-            if self._sem._value < self._sem._bound_value - 1:
-                self._sem.release()
             await asyncio.sleep(1 / self._REQUESTS_PER_SECOND)
+            if self._sem._value < self._sem._bound_value:
+                self._sem.release()
 
 
     async def acquire(self):
         return await self._sem.acquire()
 
 class Bitrix:
-    def __init__(self, webhook, custom_pool_size = 100):
+    def __init__(self, webhook, custom_pool_size = 50):
         self.webhook = webhook
         self._sw = SemaphoreWrapper(custom_pool_size)
 
@@ -87,6 +87,32 @@ class Bitrix:
     def get_list(self, method, payload_details=None):
         return asyncio.run(self._get_paginated_list(method, payload_details))
 
+
+    async def _post_item (self, method, item, session):
+        url = f'{self.webhook}{method}?{http_build_query(item)}'
+        await self._sw.acquire()
+        async with session.post(url) as response:
+            result = await response.json() 
+        return result
+
+
+    async def _post_list (self, method, item_list):
+        async with self._sw, aiohttp.ClientSession(raise_for_status=True) as session:
+            tasks = [asyncio.create_task(self._post_item(method, l, session)) for l in item_list]
+            results = []
+            if len(item_list) == 1:
+                return await tasks[0]
+            with tqdm(total=len(item_list)) as pbar:
+                for x in asyncio.as_completed((*tasks, self._sw.release_task)):
+                    r = await x
+                    pbar.update()
+                    results.append(r)
+                    if len(results) == len(item_list): break
+        return results
+
+
+    def post_list(self, method, item_list):
+        return asyncio.run(self._post_list(method, item_list))
 
 def http_build_query(data):
     parents = list()
