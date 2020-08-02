@@ -31,49 +31,37 @@ TypeError: log() missing 1 required positional argument: 'msg'
 """
 
 from datetime import datetime as dt
+import logging, logging.handlers
+import os, sys
 
-lastlog = 0
+handler = logging.handlers.RotatingFileHandler("log.log", maxBytes=10000, backupCount=0, encoding='utf-8')
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
+root = logging.getLogger()
+root.setLevel("INFO")
+root.addHandler(handler)
 
-def log(msg):
-    global lastlog
-    now = dt.now()
-    if lastlog == 0:
-        print (f'{now.strftime("%Y-%m-%d %H:%M:%S")}: {msg}')
-    else:
-        print ('{}: {}, +{}s'.format(
-            now.strftime("%Y-%m-%d %H:%M:%S"),
-            msg,
-            str(now - lastlog)
-        ))
-    lastlog = now
-    return None
+handler = logging.StreamHandler(sys.stdout)
+handler.setFormatter(formatter)
+root.addHandler(handler)
+
+log = root.info
+exception = root.exception
 
 class timer:
     def __init__(self, msg):
         self.msg = msg
 
     def __enter__(self):
-        global lastlog
         now = dt.now()
         self.start = now
-        if lastlog == 0:
-            print (f'{now.strftime("%Y-%m-%d %H:%M:%S")}: {self.msg}: starting')
-        else:
-            print ('{}: {}: starting, +{}s'.format(
-                now.strftime("%Y-%m-%d %H:%M:%S"),
-                self.msg,
-                str(now - lastlog)
-            ))
-        lastlog = now
+        log (f'{self.msg}: starting')
 
     def __exit__(self, a1, a2, a3):
-        global lastlog
         now = dt.now()
-        print('{}: {}: finished in {}s'.format(
-            now.strftime("%Y-%m-%d %H:%M:%S"),
+        log('{}: finished in {}s'.format(
             self.msg,
             str(now - self.start)))
-        lastlog = now
 
 if __name__ == "__main__":
     import doctest
