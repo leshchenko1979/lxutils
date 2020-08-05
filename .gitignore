@@ -125,3 +125,4 @@ dmypy.json
 .pyre/
 
 .pypirc
+lxutils/log.log.1

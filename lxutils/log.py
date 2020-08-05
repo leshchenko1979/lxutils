@@ -34,7 +34,7 @@ from datetime import datetime as dt
 import logging, logging.handlers
 import os, sys
 
-handler = logging.handlers.RotatingFileHandler("log.log", maxBytes=10000, backupCount=0, encoding='utf-8')
+handler = logging.handlers.RotatingFileHandler("log.log", maxBytes=50000, backupCount=1, encoding='utf-8')
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 handler.setFormatter(formatter)
 root = logging.getLogger()
@@ -48,6 +48,8 @@ root.addHandler(handler)
 log = root.info
 exception = root.exception
 
+log_debug = root.debug
+
 class timer:
     def __init__(self, msg):
         self.msg = msg
@@ -59,8 +61,9 @@ class timer:
 
     def __exit__(self, a1, a2, a3):
         now = dt.now()
-        log('{}: finished in {}s'.format(
+        log('{}: {} in {}s'.format(
             self.msg,
+            'exception' if a1 else 'finished',
             str(now - self.start)))
 
 if __name__ == "__main__":
